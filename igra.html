@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Своя Игра: Государство</title>
+    <style>
+        :root {
+            --bg-color: #0f172a;
+            --card-bg: #1e293b;
+            --accent: #3b82f6;
+            --text: #f8fafc;
+            --yellow: #facc15;
+            --green: #10b981;
+            --red: #f43f5e;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            color: var(--text);
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        header { text-align: center; margin-bottom: 30px; }
+        h1 { color: var(--accent); text-transform: uppercase; letter-spacing: 2px; margin-bottom: 10px; }
+        
+        .score-board {
+            background: var(--card-bg);
+            padding: 10px 30px;
+            border-radius: 50px;
+            border: 1px solid #334155;
+            font-size: 1.5rem;
+            font-weight: bold;
+        }
+        #score { color: var(--yellow); }
+
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(5, 1fr);
+            gap: 15px;
+            max-width: 1200px;
+            width: 100%;
+        }
+
+        .category-title {
+            background: #1e3a8a;
+            padding: 15px 5px;
+            text-align: center;
+            font-weight: bold;
+            border-radius: 10px;
+            font-size: 0.9rem;
+            height: 50px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            text-transform: uppercase;
+        }
+
+        .card {
+            background: var(--card-bg);
+            border: 1px solid #334155;
+            border-radius: 12px;
+            padding: 30px 10px;
+            text-align: center;
+            font-size: 2rem;
+            font-weight: 900;
+            color: var(--accent);
+            cursor: pointer;
+            transition: 0.2s;
+        }
+
+        .card:hover { transform: scale(1.05); background: #2d3e50; }
+        .card.used { opacity: 0.2; pointer-events: none; }
+
+        /* Модальное окно */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.9);
+            justify-content: center;
+            align-items: center;
+            z-index: 100;
+        }
+        .modal-content {
+            background: var(--card-bg);
+            padding: 40px;
+            border-radius: 20px;
+            max-width: 700px;
+            width: 90%;
+            text-align: center;
+            border: 1px solid #475569;
+        }
+        .modal-q { font-size: 1.8rem; margin-bottom: 30px; line-height: 1.4; }
+        .modal-a { font-size: 1.6rem; color: var(--green); font-weight: bold; margin: 20px 0; display: none; }
+        
+        .btn {
+            padding: 12px 25px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: bold;
+            margin: 5px;
+            font-size: 1rem;
+        }
+        .btn-blue { background: var(--accent); color: white; }
+        .btn-green { background: var(--green); color: white; }
+        .btn-red { background: var(--red); color: white; }
+
+        @media (max-width: 800px) {
+            .grid { grid-template-columns: repeat(2, 1fr); }
+        }
+    </style>
+</head>
+<body>
+
+    <header>
+        <h1>Своя Игра: Государство</h1>
+        <div class="score-board">Счёт: <span id="score">0</span></div>
+    </header>
+
+    <div class="grid" id="game-grid">
+        </div>
+
+    <div class="modal" id="modal">
+        <div class="modal-content">
+            <div id="modal-cat" style="color: #94a3b8; margin-bottom: 10px;">КАТЕГОРИЯ</div>
+            <div class="modal-q" id="modal-q">Вопрос?</div>
+            <div class="modal-a" id="modal-a">ОТВЕТ</div>
+            
+            <div id="setup-buttons">
+                <button class="btn btn-blue" onclick="showAnswer()">Показать ответ</button>
+            </div>
+            
+            <div id="result-buttons" style="display: none;">
+                <button class="btn btn-green" onclick="finishQ(true)">Верно</button>
+                <button class="btn btn-red" onclick="finishQ(false)">Неверно</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const gameData = [
+            { cat: "Признаки", q: [
+                {p: 100, t: "Исключительное право государства на сбор средств с граждан.", a: "Налоги"},
+                {p: 200, t: "Полная независимость государства внутри страны и вовне.", a: "Суверенитет"},
+                {p: 300, t: "Функция охраны границ — это внешняя или внутренняя?", a: "Внешняя"},
+                {p: 400, t: "Система органов, через которые осуществляется управление.", a: "Публичная власть"},
+                {p: 500, t: "Совокупность методов осуществления власти.", a: "Политический режим"}
+            ]},
+            { cat: "Формы правления", q: [
+                {p: 100, t: "Власть передается по наследству.", a: "Монархия"},
+                {p: 200, t: "Глава государства избирается на срок.", a: "Республика"},
+                {p: 300, t: "Монархия, где власть ограничена конституцией.", a: "Конституционная"},
+                {p: 400, t: "Республика, где президент — глава правительства.", a: "Президентская"},
+                {p: 500, t: "Республика, где правительство ответственно перед парламентом.", a: "Парламентская"}
+            ]},
+            { cat: "Устройство", q: [
+                {p: 100, t: "Единое государство без автономии частей.", a: "Унитарное"},
+                {p: 200, t: "Сложное государство из субъектов со своими законами.", a: "Федерация"},
+                {p: 300, t: "Союз независимых стран для общих целей.", a: "Конфедерация"},
+                {p: 400, t: "Как называются части РФ (области, края)?", a: "Субъекты"},
+                {p: 500, t: "Принцип разделения полномочий центра и регионов.", a: "Разграничение ведения"}
+            ]},
+            { cat: "Режимы", q: [
+                {p: 100, t: "Режим, основанный на воле народа.", a: "Демократия"},
+                {p: 200, t: "Полный контроль над всеми сферами жизни.", a: "Тоталитаризм"},
+                {p: 300, t: "Власть одного лидера при свободе в экономике.", a: "Авторитаризм"},
+                {p: 400, t: "Принцип демократии: «Разрешено всё, что не...»", a: "Запрещено законом"},
+                {p: 500, t: "Многообразие партий и мнений.", a: "Политический плюрализм"}
+            ]},
+            { cat: "Право", q: [
+                {p: 100, t: "Высшая ценность в РФ по Конституции.", a: "Человек и его права"},
+                {p: 200, t: "Власть делится на три ветви — это принцип...", a: "Разделения властей"},
+                {p: 300, t: "Ветвь власти, которая пишет законы.", a: "Законодательная"},
+                {p: 400, t: "Организации граждан, независимые от государства.", a: "Гражданское общество"},
+                {p: 500, t: "К какой ветви относится Правительство?", a: "Исполнительная"}
+            ]}
+        ];
+
+        let score = 0;
+        let currentP = 0;
+        const grid = document.getElementById('game-grid');
+
+        gameData.forEach(item => {
+            const col = document.createElement('div');
+            col.innerHTML = `<div class="category-title">${item.cat}</div>`;
+            item.q.forEach(question => {
+                const card = document.createElement('div');
+                card.className = 'card';
+                card.innerText = question.p;
+                card.onclick = () => showQ(item.cat, question.t, question.a, question.p, card);
+                col.appendChild(card);
+            });
+            grid.appendChild(col);
+        });
+
+        function showQ(cat, q, a, p, el) {
+            currentP = p;
+            document.getElementById('modal-cat').innerText = cat;
+            document.getElementById('modal-q').innerText = q;
+            document.getElementById('modal-a').innerText = a;
+            document.getElementById('modal-a').style.display = 'none';
+            document.getElementById('setup-buttons').style.display = 'block';
+            document.getElementById('result-buttons').style.display = 'none';
+            document.getElementById('modal').style.display = 'flex';
+            el.classList.add('used');
+        }
+
+        function showAnswer() {
+            document.getElementById('modal-a').style.display = 'block';
+            document.getElementById('setup-buttons').style.display = 'none';
+            document.getElementById('result-buttons').style.display = 'block';
+        }
+
+        function finishQ(isCorrect) {
+            score = isCorrect ? score + currentP : score - currentP;
+            document.getElementById('score').innerText = score;
+            document.getElementById('modal').style.display = 'none';
+        }
+    </script>
+</body>
+</html>
